@@ -41,8 +41,9 @@
     .connections path.active { stroke: var(--accent); }
     .node, .editor-dock { border: 1px solid var(--line); border-radius: 12px; background: rgba(35,35,35,.98); box-shadow: 0 12px 28px rgba(0,0,0,.24); overflow: hidden; }
     .node { position: absolute; width: 310px; }
-    .source-node { top: 116px; left: 70px; border-color: #8c5d46; transition: border-color .16s ease, box-shadow .16s ease; }
+    .source-node { top: 116px; left: 70px; border-color: #8c5d46; transition: border-color .16s ease, box-shadow .16s ease; z-index: 4; }
     .source-node.is-editing { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(239,125,69,.18), 0 18px 40px rgba(0,0,0,.32); }
+    .source-node.is-editing .node-footer, .source-node.is-editing > .tool-row { display: none; }
     .result-zone { position: absolute; top: 116px; left: 1195px; display: grid; gap: 18px; width: 320px; }
     #result-list { display: grid; gap: 18px; }
     .node-title { justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
@@ -50,7 +51,9 @@
     .node-type { color: var(--muted); font-size: 12px; }
     .node-status { display: inline-flex; align-items: center; gap: 5px; color: var(--success); font-size: 12px; white-space: nowrap; }
     .node-status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-    .node-image { height: 180px; overflow: hidden; background: #45615b; }
+    .node-image { position: relative; height: 180px; overflow: hidden; background: #45615b; }
+    .node-image.is-crop .crop-selection { display: block; }
+    .node-image.is-grid .grid-overlay { display: grid; }
     .scene-art { width: 100%; height: 100%; display: block; }
     .node-footer { justify-content: space-between; padding: 10px 14px 12px; color: var(--muted); font-size: 12px; }
     .tool-row { gap: 8px; padding: 0 14px 14px; }
@@ -72,7 +75,7 @@
     @keyframes node-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
     /* 画布内编辑节点：这是 LibTV 风格的就地编辑，不是 modal。 */
-    .editor-dock { position: absolute; z-index: 3; top: 76px; left: 410px; display: none; width: 740px; border-color: #76513e; box-shadow: 0 18px 46px rgba(0,0,0,.38); animation: dock-in .2s ease-out; }
+    .editor-dock { position: absolute; z-index: 3; top: 340px; left: 70px; display: none; width: 310px; border-color: #76513e; border-top: 0; border-radius: 0 0 12px 12px; box-shadow: 0 18px 46px rgba(0,0,0,.38); animation: dock-in .2s ease-out; }
     .editor-dock.is-open { display: block; }
     @keyframes dock-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     .editor-header { justify-content: space-between; gap: 18px; padding: 14px 16px; border-bottom: 1px solid var(--line); background: #26211e; }
@@ -81,9 +84,9 @@
     .editor-heading h1 { margin: 0; font-size: 16px; }
     .editor-heading p { margin: 0; color: var(--muted); font-size: 12px; }
     .editor-actions { gap: 8px; }
-    .editor-main { display: grid; grid-template-columns: minmax(0, 1fr) 224px; min-height: 0; }
-    .editor-stage-wrap { display: grid; place-items: center; min-height: 350px; padding: 22px; background: #191919; }
-    .editor-sidebar { padding: 18px; border-left: 1px solid var(--line); background: #252525; }
+    .editor-main { display: grid; grid-template-columns: 1fr; min-height: 0; }
+    .editor-stage-wrap { display: none; }
+    .editor-sidebar { padding: 12px; border-left: 0; background: #252525; }
     .editor-sidebar h2 { margin: 0 0 8px; font-size: 13px; }
     .editor-sidebar p { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
     .editor-pane { width: 100%; }
@@ -103,6 +106,7 @@
     .custom-grid label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
     .custom-grid select { min-height: 32px; padding: 0 7px; border: 1px solid #4d4d4d; border-radius: 7px; background: #303030; color: var(--text); }
     .grid-overlay { position: absolute; inset: 0; z-index: 2; display: grid; }
+    .node-image > .crop-selection, .node-image > .grid-overlay { display: none; }
     .grid-cell { min-width: 0; min-height: 0; border: 1px solid rgba(255,255,255,.75); background: rgba(10,10,10,.05); color: transparent; }
     .grid-cell:hover { background: rgba(255,255,255,.15); }
     .grid-cell[aria-pressed="true"] { background: rgba(239,125,69,.5); box-shadow: inset 0 0 0 2px #ffd1bb; }
@@ -125,7 +129,7 @@
       .topbar-meta span:not(.prototype-badge) { display: none; }
       .canvas { padding: 32px 20px; }
       .canvas-inner { min-width: 1120px; }
-      .editor-dock { left: 350px; width: 690px; }
+      .editor-dock { left: 70px; width: 310px; }
     }
   </style>
 </head>
@@ -141,7 +145,7 @@
         <svg id="connections" class="connections" viewBox="0 0 1510 720" preserveAspectRatio="none" aria-hidden="true"></svg>
         <article class="node source-node" id="source-node" aria-label="源图片结果节点">
           <header class="node-title"><div><strong>夏日摩托</strong><span class="node-type"> · 图片结果节点</span></div><span class="node-status">已完成</span></header>
-          <div class="node-image"><svg class="scene-art" viewBox="0 0 640 360" aria-hidden="true"><use href="#scene"></use></svg></div>
+          <div class="node-image" id="source-image-stage"><svg class="scene-art" viewBox="0 0 640 360" aria-hidden="true"><use href="#scene"></use></svg><div class="crop-selection" id="crop-selection" aria-label="可拖动和缩放的裁切框"><span class="selection-label" id="crop-size-label">1475 × 864</span><span class="thirds"></span><span class="resize-handle" aria-hidden="true"></span></div><div class="grid-overlay" id="source-grid-overlay" aria-label="宫格选区"></div></div>
           <div class="node-footer"><span>2048 × 1152</span><span>原图保留</span></div>
           <div class="tool-row" aria-label="图片编辑工具"><button class="tool tool--primary" id="open-crop" type="button">裁切</button><button class="tool" id="open-grid" type="button">宫格切分</button><span class="free-label">免费</span></div>
         </article>
@@ -153,12 +157,8 @@
           </header>
           <div class="editor-main">
             <div class="editor-stage-wrap">
-              <div id="crop-pane" class="editor-pane">
-                <div class="crop-stage" id="crop-stage"><svg class="scene-art" viewBox="0 0 640 360" aria-hidden="true"><use href="#scene"></use></svg><div class="crop-selection" id="crop-selection" aria-label="可拖动和缩放的裁切框"><span class="selection-label" id="crop-size-label">1475 × 864</span><span class="thirds"></span><span class="resize-handle" aria-hidden="true"></span></div></div>
-              </div>
-              <div id="grid-pane" class="editor-pane" hidden>
-                <div class="grid-stage" id="grid-stage"><svg class="scene-art" viewBox="0 0 640 360" aria-hidden="true"><use href="#scene"></use></svg><div class="grid-overlay" id="grid-overlay" aria-label="宫格选区"></div></div>
-              </div>
+              <div id="crop-pane" class="editor-pane"></div>
+              <div id="grid-pane" class="editor-pane" hidden></div>
             </div>
             <aside class="editor-sidebar" aria-label="图片编辑设置">
               <div id="crop-controls" class="editor-controls"><h2>裁切比例</h2><p>比例切换会实时更新画布中的裁切框与预览。</p><div class="ratio-list" id="ratio-list"></div><div class="preview-label"><span>结果预览</span><span id="preview-ratio">原图比例</span></div><div class="crop-mini-preview" id="crop-mini-preview"><svg class="scene-art" viewBox="0 0 640 360" aria-hidden="true"><use href="#scene"></use></svg></div><label class="failure-toggle"><input id="crop-fail" type="checkbox"> 模拟保存失败</label></div>
@@ -189,7 +189,8 @@
     const $ = (selector) => document.querySelector(selector);
     const editorDock = $('#editor-dock');
     const cropSelection = $('#crop-selection');
-    const cropStage = $('#crop-stage');
+    const sourceStage = $('#source-image-stage');
+    const cropStage = sourceStage;
     const toast = $('#status-toast');
     const sourceNode = $('#source-node');
 
@@ -202,6 +203,7 @@
     function openEditor(mode) {
       editorMode = mode;
       sourceNode.classList.add('is-editing');
+      sourceStage.classList.add(mode === 'crop' ? 'is-crop' : 'is-grid');
       editorDock.classList.add('is-open');
       $('#crop-pane').hidden = mode !== 'crop';
       $('#grid-pane').hidden = mode !== 'grid';
@@ -215,7 +217,7 @@
       else { draftGrid = cloneGrid(prototypeState.grid); $('#grid-fail').checked = false; renderGrid(); }
       renderConnections();
     }
-    function closeEditor(message = '已取消编辑') { if (!editorMode) return; editorDock.classList.remove('is-open'); sourceNode.classList.remove('is-editing'); editorMode = null; dragState = null; renderConnections(); showStatus(message); }
+    function closeEditor(message = '已取消编辑') { if (!editorMode) return; editorDock.classList.remove('is-open'); sourceNode.classList.remove('is-editing'); sourceStage.classList.remove('is-crop', 'is-grid'); editorMode = null; dragState = null; renderConnections(); showStatus(message); }
 
     function renderRatioButtons() { $('#ratio-list').innerHTML = ratioOptions.map(([value, label]) => `<button class="ratio-button" type="button" data-ratio="${value}" aria-pressed="${draftCrop.ratio === value}">${label}</button>`).join(''); }
     function renderCrop() {
@@ -263,7 +265,7 @@
     function gridKey(row, column) { return `${row}-${column}`; }
     function selectionText() { const selected = [...draftGrid.selected].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })); return selected.length ? `已选 ${selected.length} 个宫格：${selected.join('、')}` : '请选择宫格进行操作'; }
     function renderGrid() {
-      const overlay = $('#grid-overlay'); overlay.style.gridTemplateColumns = `repeat(${draftGrid.columns}, 1fr)`; overlay.style.gridTemplateRows = `repeat(${draftGrid.rows}, 1fr)`;
+      const overlay = $('#source-grid-overlay'); overlay.style.gridTemplateColumns = `repeat(${draftGrid.columns}, 1fr)`; overlay.style.gridTemplateRows = `repeat(${draftGrid.rows}, 1fr)`;
       overlay.innerHTML = Array.from({ length: draftGrid.rows * draftGrid.columns }, (_, index) => { const row = Math.floor(index / draftGrid.columns) + 1; const column = index % draftGrid.columns + 1; const key = gridKey(row, column); return `<button class="grid-cell" type="button" data-row="${row}" data-column="${column}" aria-label="选择宫格 ${key}" aria-pressed="${draftGrid.selected.has(key)}">${key}</button>`; }).join('');
       $('#selected-summary').textContent = selectionText(); $('#selected-count').textContent = String(draftGrid.selected.size); renderPresets(); renderGridSelectors();
     }
@@ -286,7 +288,7 @@
     $('#editor-confirm').addEventListener('click', () => editorMode === 'crop' ? finishCrop() : finishGrid());
     $('#ratio-list').addEventListener('click', event => { const button = event.target.closest('[data-ratio]'); if (button) applyCropRatio(button.dataset.ratio); });
     $('#preset-list').addEventListener('click', event => { const button = event.target.closest('[data-size]'); if (button) setGridSize(button.dataset.size, button.dataset.size); });
-    $('#grid-overlay').addEventListener('click', event => { const cell = event.target.closest('.grid-cell'); if (cell) toggleGridCell(Number(cell.dataset.row), Number(cell.dataset.column), event.shiftKey); });
+    $('#source-grid-overlay').addEventListener('click', event => { const cell = event.target.closest('.grid-cell'); if (cell) toggleGridCell(Number(cell.dataset.row), Number(cell.dataset.column), event.shiftKey); });
     $('#grid-rows').addEventListener('change', event => setGridSize(event.target.value, draftGrid.columns));
     $('#grid-columns').addEventListener('change', event => setGridSize(draftGrid.rows, event.target.value));
     cropSelection.addEventListener('pointerdown', event => { if (editorMode !== 'crop') return; const rect = cropStage.getBoundingClientRect(); dragState = { mode: event.target.classList.contains('resize-handle') ? 'resize' : 'move', startX: event.clientX, startY: event.clientY, sourceX: draftCrop.crop.x, sourceY: draftCrop.crop.y, sourceWidth: draftCrop.crop.width, sourceHeight: draftCrop.crop.height, rect }; cropSelection.setPointerCapture(event.pointerId); });
